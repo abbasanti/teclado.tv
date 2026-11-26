@@ -1,0 +1,42 @@
+name: Compilar APK
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Ubicar el proyecto
+        run: |
+          for z in *.zip; do
+            if [ -f "$z" ]; then unzip -oq "$z"; fi
+          done
+          DIR=$(dirname "$(find . -name settings.gradle | head -n 1)")
+          if [ ! -f "$DIR/settings.gradle" ]; then
+            echo "Falta el proyecto: subi MiLauncher.zip al repositorio"
+            exit 1
+          fi
+          echo "PROYECTO=$DIR" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v5
+        with:
+          gradle-version: '8.7'
+
+      - run: gradle -p "$PROYECTO" :app:assembleRelease --no-daemon
+
+      - run: cp "$PROYECTO/app/build/outputs/apk/release/app-release.apk" MiLauncher.apk
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: MiLauncher-apk
+          path: MiLauncher.apk
+          if-no-files-found: error
